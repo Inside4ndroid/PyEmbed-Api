@@ -18,7 +18,7 @@ __version__ = "1.0.2"
 
 API_BASE = "https://hdhub.thevolecitor.qzz.io/eyJ0b3Jib3giOiJ1bnNldCIsInF1YWxpdGllcyI6IjIxNjBwLDEwODBwLDcyMHAiLCJzb3J0IjoiZGVzYyJ9"
 
-TMDB_API_KEY = "f3c627493095a7e40ceca68355c94c6d"  # Public API key for TMDB
+TMDB_API_KEY = "439c478a771f35c05022f9feabcca01c"  # Public API key for TMDB
 
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',

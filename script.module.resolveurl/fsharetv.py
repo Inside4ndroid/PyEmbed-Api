@@ -19,7 +19,7 @@ __version__ = "1.0.3"
 
 BASE_URL = 'https://fsharetv.cc'
 TRAILER = 'Png81APqcxU'
-TMDB_API_KEY = "f3c627493095a7e40ceca68355c94c6d"  # Public API key for TMDB
+TMDB_API_KEY = "439c478a771f35c05022f9feabcca01c"  # Public API key for TMDB
 
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0',

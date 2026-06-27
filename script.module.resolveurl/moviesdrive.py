@@ -18,7 +18,7 @@ import requests
 __version__ = "1.0.2"
 
 DOMAINS_URL = "https://raw.githubusercontent.com/phisher98/TVVVV/refs/heads/main/domains.json"
-TMDB_API_KEY = "f3c627493095a7e40ceca68355c94c6d"
+TMDB_API_KEY = "439c478a771f35c05022f9feabcca01c"
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
