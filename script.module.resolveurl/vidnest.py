@@ -30,7 +30,6 @@ BACKENDS = [
     {'name': 'Movies5F', 'path': 'movies5f'},
 ]
 
-# User agents for different requests
 USER_AGENTS = {
     'default': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     'api': 'Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/121.0',
@@ -67,26 +66,31 @@ class VidNestResolver:
         except Exception as e:
             return False, None, f"Error: {str(e)}"
 
-    def resolve(self, url_or_id, is_tv=False):
+    def resolve(self, url_or_id, media_type='movie', season=None, episode=None):
         self.log("=" * 80)
-        self.log("VidNest Resolver Started - Standalone Mode")
+        self.log(f"VidNest Resolver Started - {media_type}")
 
         if url_or_id.startswith('http'):
-            match = re.search(r'/movie/(\d+)', url_or_id)
+            match = re.search(r'/(?:movie|tv)/(\d+)', url_or_id)
             if not match:
-                match = re.search(r'/tv/(\d+)', url_or_id)
-            if match:
-                media_id = match.group(1)
-            else:
                 return json.dumps({
                     'status': 'error',
                     'message': 'Could not extract media ID from URL'
                 })
+            media_id = match.group(1)
+            if '/tv/' in url_or_id:
+                media_type = 'tv'
+                se_match = re.search(r'/tv/\d+/(\d+)/(\d+)', url_or_id)
+                if se_match:
+                    season = int(se_match.group(1))
+                    episode = int(se_match.group(2))
         else:
             media_id = url_or_id
 
         self.log(f"Media ID: {media_id}")
-        self.log(f"Content Type: {'TV Show' if is_tv else 'Movie'}")
+        self.log(f"Content Type: {'TV Show' if media_type == 'tv' else 'Movie'}")
+        if media_type == 'tv':
+            self.log(f"Season: {season}, Episode: {episode}")
 
         tmdb_id = media_id
         self.log(f"TMDB ID: {tmdb_id}")
@@ -94,14 +98,14 @@ class VidNestResolver:
         self.log(f"Starting parallel backend resolution...")
         self.log(f"Total backends to try: {len(BACKENDS)}")
 
-        results = self._try_all_backends(tmdb_id, is_tv)
+        results = self._try_all_backends(tmdb_id, media_type, season, episode)
         json_response = self._build_json_response(results)
         self._log_results_summary(results)
 
         self.log("=" * 80)
         return json.dumps(json_response, indent=2)
 
-    def _try_all_backends(self, tmdb_id, is_tv=False):
+    def _try_all_backends(self, tmdb_id, media_type='movie', season=1, episode=1):
         results = []
         threads = []
         result_queue = Queue()
@@ -109,7 +113,7 @@ class VidNestResolver:
         for backend in BACKENDS:
             thread = threading.Thread(
                 target=self._try_backend_thread,
-                args=(tmdb_id, backend, is_tv, result_queue)
+                args=(tmdb_id, backend, media_type, season, episode, result_queue)
             )
             threads.append(thread)
             thread.start()
@@ -122,7 +126,7 @@ class VidNestResolver:
 
         return results
 
-    def _try_backend_thread(self, tmdb_id, backend, is_tv, result_queue):
+    def _try_backend_thread(self, tmdb_id, backend, media_type, season, episode, result_queue):
         result = {
             'backend': backend['name'],
             'path': backend['path'],
@@ -139,8 +143,9 @@ class VidNestResolver:
         try:
             self.log(f"Thread started for backend: {backend['name']}", "DEBUG")
 
-            if is_tv:
-                api_url = f'https://new.vidnest.fun/{backend["path"]}/tv/{tmdb_id}/1/1'
+            if media_type == 'tv':
+                # Use season and episode from parameters
+                api_url = f'https://new.vidnest.fun/{backend["path"]}/tv/{tmdb_id}/{season}/{episode}'
             else:
                 api_url = f'https://new.vidnest.fun/{backend["path"]}/movie/{tmdb_id}'
 
@@ -357,19 +362,17 @@ class VidNestResolver:
 
             if result['success'] and result['url']:
                 headers = result.get('headers', {})
-                result_data['url'] = result['url']  # raw URL only
+                result_data['url'] = result['url']
                 result_data['headers'] = headers
 
-                # Add to playable URLs
                 response['playable_urls'].append({
                     'backend': result['backend'],
-                    'url': result['url'],  # raw URL only
+                    'url': result['url'],
                     'headers': headers
                 })
 
             response['results'].append(result_data)
 
-        # Sort playable URLs by quality preference (MP4 first, then M3U8)
         def url_priority(item):
             url = item['url'].lower()
             if '.mp4' in url:
@@ -405,14 +408,21 @@ def main():
 
     parser = argparse.ArgumentParser(description='VidNest Resolver')
     parser.add_argument('url_or_id', help='VidNest URL or media ID')
-    parser.add_argument('--tv', action='store_true', help='Treat as TV show')
+    parser.add_argument('--type', choices=['movie', 'tv'], default='movie', help='Media type (default: movie)')
+    parser.add_argument('--season', type=int, default=1, help='Season number (for TV, default: 1)')
+    parser.add_argument('--episode', type=int, default=1, help='Episode number (for TV, default: 1)')
     parser.add_argument('--debug', action='store_true', help='Enable debug logging')
     parser.add_argument('--pretty', action='store_true', help='Pretty print JSON output')
 
     args = parser.parse_args()
 
     resolver = VidNestResolver(debug=args.debug)
-    result_json = resolver.resolve(args.url_or_id, args.tv)
+    result_json = resolver.resolve(
+        args.url_or_id,
+        media_type=args.type,
+        season=args.season,
+        episode=args.episode
+    )
 
     if args.pretty:
         try:

@@ -14,7 +14,7 @@ import urllib.error
 import ssl
 from urllib.parse import urlencode
 
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 
 API_BASE = "https://hdhub.thevolecitor.qzz.io/eyJ0b3Jib3giOiJ1bnNldCIsInF1YWxpdGllcyI6IjIxNjBwLDEwODBwLDcyMHAiLCJzb3J0IjoiZGVzYyJ9"
 
@@ -80,19 +80,19 @@ class HdHubResolver:
             pass
         return None
 
-    def resolve(self, url_or_id, is_tv=False, season=None, episode=None):
+    def resolve(self, url_or_id, media_type='movie', season=None, episode=None):
         """
         Main method to resolve HdHub URL
         Args:
             url_or_id: URL, TMDB ID (numeric), or IMDb ID (tt...)
-            is_tv: Whether it's a TV show
+            media_type: 'movie' or 'tv'
             season: Season number (for TV)
             episode: Episode number (for TV)
         Returns:
             JSON string with results
         """
         self.log("=" * 80)
-        self.log("HdHub Resolver Started - Standalone Mode")
+        self.log(f"HdHub Resolver Started - Standalone Mode ({media_type})")
 
         # Extract ID from URL if needed
         if url_or_id.startswith('http'):
@@ -104,7 +104,7 @@ class HdHubResolver:
                 if match:
                     tmdb_id = match.group(1)
                     # Try to convert TMDB to IMDb
-                    imdb_id = self._get_imdb_from_tmdb(tmdb_id, "tv" if is_tv else "movie")
+                    imdb_id = self._get_imdb_from_tmdb(tmdb_id, media_type)
                     if not imdb_id:
                         return json.dumps({
                             'status': 'error',
@@ -119,7 +119,7 @@ class HdHubResolver:
             # If it's numeric, treat as TMDB ID
             if url_or_id.isdigit():
                 tmdb_id = url_or_id
-                imdb_id = self._get_imdb_from_tmdb(tmdb_id, "tv" if is_tv else "movie")
+                imdb_id = self._get_imdb_from_tmdb(tmdb_id, media_type)
                 if not imdb_id:
                     return json.dumps({
                         'status': 'error',
@@ -135,8 +135,8 @@ class HdHubResolver:
                 imdb_id = url_or_id
 
         self.log(f"IMDb ID: {imdb_id}")
-        self.log(f"Content Type: {'TV Show' if is_tv else 'Movie'}")
-        if is_tv:
+        self.log(f"Content Type: {'TV Show' if media_type == 'tv' else 'Movie'}")
+        if media_type == 'tv':
             if season is None or episode is None:
                 return json.dumps({
                     'status': 'error',
@@ -145,7 +145,7 @@ class HdHubResolver:
             self.log(f"Season: {season}, Episode: {episode}")
 
         # Build API URL
-        if is_tv:
+        if media_type == 'tv':
             api_url = f"{API_BASE}/stream/series/{imdb_id}:{season}:{episode}.json"
         else:
             api_url = f"{API_BASE}/stream/movie/{imdb_id}.json"
@@ -196,13 +196,13 @@ class HdHubResolver:
 
             # Determine type
             if '.m3u8' in url.lower():
-                media_type = 'hls'
+                stream_type = 'hls'
             elif '.mpd' in url.lower():
-                media_type = 'dash'
+                stream_type = 'dash'
             elif '.mp4' in url.lower() or '.mkv' in url.lower():
-                media_type = 'mp4'
+                stream_type = 'mp4'
             else:
-                media_type = 'hls'
+                stream_type = 'hls'
 
             # Headers from behaviorHints
             headers = {}
@@ -222,7 +222,7 @@ class HdHubResolver:
             playable_urls.append({
                 'url': url,
                 'quality': quality,
-                'type': media_type,
+                'type': stream_type,
                 'headers': headers,
             })
 
@@ -243,7 +243,7 @@ def main():
 
     parser = argparse.ArgumentParser(description='HdHub Resolver')
     parser.add_argument('url_or_id', help='HdHub URL, TMDB ID, or IMDb ID (tt...)')
-    parser.add_argument('--tv', action='store_true', help='Treat as TV show')
+    parser.add_argument('--type', choices=['movie', 'tv'], default='movie', help='Media type (default: movie)')
     parser.add_argument('--season', type=int, help='Season number (for TV)')
     parser.add_argument('--episode', type=int, help='Episode number (for TV)')
     parser.add_argument('--debug', action='store_true', help='Enable debug logging')
@@ -252,7 +252,12 @@ def main():
     args = parser.parse_args()
 
     resolver = HdHubResolver(debug=args.debug)
-    result_json = resolver.resolve(args.url_or_id, args.tv, args.season, args.episode)
+    result_json = resolver.resolve(
+        args.url_or_id,
+        media_type=args.type,
+        season=args.season,
+        episode=args.episode
+    )
 
     if args.pretty:
         try:

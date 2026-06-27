@@ -4,6 +4,7 @@ FshareTV Resolver - Standalone Version
 Supports both TMDB (numeric) and IMDb (tt) IDs
 Returns JSON with stream URL and headers
 Based on fshare.ts
+Note: FshareTV only supports movies. TV show parameters will be ignored.
 """
 
 import re
@@ -14,7 +15,7 @@ import urllib.error
 import ssl
 from urllib.parse import urljoin, urlencode
 
-__version__ = "1.0.2"
+__version__ = "1.0.3"
 
 BASE_URL = 'https://fsharetv.cc'
 TRAILER = 'Png81APqcxU'
@@ -86,55 +87,60 @@ class FshareTvResolver:
             pass
         return None
 
-    def _extract_id(self, url_or_id):
+    def _extract_id(self, url_or_id, media_type='movie'):
         """
         Extract IMDb ID from URL or determine if it's a TMDB ID.
-        Returns (imdb_id, tmdb_id, media_type)
+        Returns (imdb_id, tmdb_id)
         """
         # If it's a URL
         if url_or_id.startswith('http'):
             # Try to extract IMDb ID
             match = re.search(r'/movie/(tt\d+)', url_or_id)
             if match:
-                return match.group(1), None, "movie"
+                return match.group(1), None
             # Try to extract TMDB ID
-            match = re.search(r'/movie/(\d+)', url_or_id)
+            match = re.search(r'/(?:movie|tv)/(\d+)', url_or_id)
             if match:
                 tmdb_id = match.group(1)
-                imdb_id = self._get_imdb_from_tmdb(tmdb_id, "movie")
-                return imdb_id, tmdb_id, "movie"
+                # Determine if it's TV from URL or from media_type
+                if '/tv/' in url_or_id:
+                    media_type = 'tv'
+                imdb_id = self._get_imdb_from_tmdb(tmdb_id, media_type)
+                return imdb_id, tmdb_id
             # Try to extract IMDb ID from anywhere in URL
             match = re.search(r'(tt\d+)', url_or_id)
             if match:
-                return match.group(1), None, "movie"
+                return match.group(1), None
         else:
             # If it starts with tt, it's an IMDb ID
             if re.match(r'^tt\d+$', url_or_id):
-                return url_or_id, None, "movie"
+                return url_or_id, None
             # If it's numeric, treat as TMDB movie ID
             if url_or_id.isdigit():
                 tmdb_id = url_or_id
-                imdb_id = self._get_imdb_from_tmdb(tmdb_id, "movie")
-                return imdb_id, tmdb_id, "movie"
-        return None, None, None
+                imdb_id = self._get_imdb_from_tmdb(tmdb_id, media_type)
+                return imdb_id, tmdb_id
+        return None, None
 
-    def resolve(self, url_or_id, is_tv=False):
+    def resolve(self, url_or_id, media_type='movie', season=None, episode=None):
         """
         Main method to resolve FshareTV URL
         Args:
             url_or_id: URL, TMDB ID (numeric), or IMDb ID (tt...)
-            is_tv: Not supported, kept for compatibility
+            media_type: 'movie' or 'tv' (tv not supported)
+            season, episode: ignored for movies
         Returns:
             JSON string with results
         """
         self.log("=" * 80)
-        self.log("FshareTV Resolver Started - Standalone Mode")
-        if is_tv:
-            self.log("TV shows are not supported by FshareTV, only movies.")
-            # Try TV conversion anyway (FshareTV might not have it)
-            # But we'll still try, maybe it works
+        self.log(f"FshareTV Resolver Started - {media_type}")
+        
+        if media_type == 'tv':
+            self.log("WARNING: FshareTV does not support TV shows. Attempting as movie anyway.", "WARNING")
+            # Try to convert TV to movie? Usually not possible, but we still attempt.
+            # We'll proceed with the same extraction, but using TV TMDB API might get IMDb.
 
-        imdb_id, tmdb_id, media_type = self._extract_id(url_or_id)
+        imdb_id, tmdb_id = self._extract_id(url_or_id, media_type)
         if not imdb_id:
             return json.dumps({
                 'status': 'error',
@@ -258,18 +264,17 @@ class FshareTvResolver:
                     src_url = urljoin(BASE_URL, src_url)
 
                 # Infer type and quality
-                media_type = src_data.get('type', '').replace('video/', '')
-                if not media_type:
+                media_type_str = src_data.get('type', '').replace('video/', '')
+                if not media_type_str:
                     if '.m3u8' in src_url:
-                        media_type = 'hls'
+                        media_type_str = 'hls'
                     elif '.mpd' in src_url:
-                        media_type = 'dash'
+                        media_type_str = 'dash'
                     else:
-                        media_type = 'mp4'
+                        media_type_str = 'mp4'
 
                 quality_label = src_data.get('label')
                 if quality_label:
-                    # Try to extract numeric quality from label
                     qual_match = re.search(r'(\d+)p', quality_label)
                     if qual_match:
                         quality = f"{qual_match.group(1)}p"
@@ -285,7 +290,7 @@ class FshareTvResolver:
                 playable_urls.append({
                     'url': src_url,
                     'quality': quality,
-                    'type': media_type,
+                    'type': media_type_str,
                     'headers': headers,
                 })
 
@@ -313,16 +318,23 @@ class FshareTvResolver:
 def main():
     import argparse
 
-    parser = argparse.ArgumentParser(description='FshareTV Resolver')
+    parser = argparse.ArgumentParser(description='FshareTV Resolver (Movies only)')
     parser.add_argument('url_or_id', help='FshareTV URL, TMDB ID, or IMDb ID (tt...)')
+    parser.add_argument('--type', choices=['movie', 'tv'], default='movie', help='Media type (default: movie; TV not supported)')
+    parser.add_argument('--season', type=int, help='Season number (ignored, not supported)')
+    parser.add_argument('--episode', type=int, help='Episode number (ignored, not supported)')
     parser.add_argument('--debug', action='store_true', help='Enable debug logging')
     parser.add_argument('--pretty', action='store_true', help='Pretty print JSON output')
 
     args = parser.parse_args()
 
     resolver = FshareTvResolver(debug=args.debug)
-    # TV not supported, but we keep is_tv param for compatibility
-    result_json = resolver.resolve(args.url_or_id, is_tv=False)
+    result_json = resolver.resolve(
+        args.url_or_id,
+        media_type=args.type,
+        season=args.season,
+        episode=args.episode
+    )
 
     if args.pretty:
         try:

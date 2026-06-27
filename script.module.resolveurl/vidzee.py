@@ -22,7 +22,7 @@ try:
 except ImportError:
     raise ImportError("Please install pycryptodome: pip install pycryptodome")
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 API_KEY_URL = "https://core.vidzee.wtf/api-key"
 SERVER_BASE = "https://player.vidzee.wtf/api/server"
@@ -56,7 +56,6 @@ class VidzeeResolver:
         if self.debug or level == "ERROR":
             print(f"[{level}] {message}")
 
-    # ── HTTP helpers ──────────────────────────────────────────────────────
     def _fetch_url(self, url, headers=None, timeout=15, method='GET', data=None, json_data=None):
         if headers is None:
             headers = HEADERS.copy()
@@ -81,7 +80,6 @@ class VidzeeResolver:
             return False, None, f"Error: {str(e)}", None
 
     def _head_url(self, url, headers=None):
-        """Perform HEAD request to check reachability."""
         if headers is None:
             headers = {}
         default_headers = {
@@ -100,9 +98,7 @@ class VidzeeResolver:
         except Exception:
             return False
 
-    # ── Decryption helpers ───────────────────────────────────────────────
     def _decrypt_api_key(self, encrypted_base64: str) -> str:
-        """Decrypt API key using AES-256-GCM."""
         try:
             raw = base64.b64decode(encrypted_base64.replace("\\s+", ""))
             if len(raw) <= 28:
@@ -120,7 +116,6 @@ class VidzeeResolver:
             return ""
 
     def _decrypt_video_link(self, encrypted_link: str, api_key: str) -> str:
-        """Decrypt video link using AES-256-CBC."""
         try:
             decoded = base64.b64decode(encrypted_link).decode('utf-8')
             colon = decoded.find(':')
@@ -130,23 +125,19 @@ class VidzeeResolver:
             ciphertext_b64 = decoded[colon+1:]
             iv = base64.b64decode(iv_b64)
             ciphertext = base64.b64decode(ciphertext_b64)
-            # Pad key to 32 bytes with null bytes
             key_bytes = api_key.encode('utf-8')
             key_padded = key_bytes.ljust(32, b'\x00')[:32]
             cipher = AES.new(key_padded, AES.MODE_CBC, iv)
             plaintext_padded = cipher.decrypt(ciphertext)
-            # Unpad (PKCS7)
             try:
                 plaintext = unpad(plaintext_padded, AES.block_size).decode('utf-8')
             except ValueError:
-                # Sometimes padding may be absent or different; fallback to raw
                 plaintext = plaintext_padded.decode('utf-8', errors='ignore')
             return plaintext
         except Exception as e:
             self.log(f"Video link decryption failed: {e}", "ERROR")
             return ""
 
-    # ── Get API key ──────────────────────────────────────────────────────
     def _get_api_key(self):
         if self.cached_api_key:
             return self.cached_api_key
@@ -167,7 +158,6 @@ class VidzeeResolver:
         self.log("API key decryption failed", "ERROR")
         return None
 
-    # ── Fetch server streams ─────────────────────────────────────────────
     def _fetch_server_streams(self, server_idx, server_name, base_params, api_key):
         url = f"{SERVER_BASE}?{base_params}&sr={server_idx}"
         self.log(f"Fetching server {server_name} (sr={server_idx})...", "DEBUG")
@@ -198,7 +188,6 @@ class VidzeeResolver:
             if not decrypted or not decrypted.startswith('http'):
                 continue
 
-            # Merge headers
             headers = data.get('headers') or {}
             if 'Referer' not in headers:
                 headers['Referer'] = PLAYER_REFERER
@@ -207,7 +196,6 @@ class VidzeeResolver:
             if 'User-Agent' not in headers:
                 headers['User-Agent'] = HEADERS['User-Agent']
 
-            # Check reachability
             if not self._head_url(decrypted, headers):
                 self.log(f"Server {server_name} URL not reachable: {decrypted[:60]}", "WARNING")
                 continue
@@ -227,18 +215,16 @@ class VidzeeResolver:
             })
         return streams
 
-    # ── Main resolve ──────────────────────────────────────────────────────
-    def resolve(self, url_or_id, is_tv=False, season=None, episode=None):
+    def resolve(self, url_or_id, media_type='movie', season=None, episode=None):
         self.log("=" * 80)
-        self.log("Vidzee Resolver Started - Standalone Mode")
+        self.log(f"Vidzee Resolver Started - {media_type}")
 
-        # Extract TMDB ID from URL if needed
         if url_or_id.startswith('http'):
             match = re.search(r'/(?:movie|tv)/(\d+)', url_or_id)
             if match:
                 tmdb_id = match.group(1)
                 if '/tv/' in url_or_id:
-                    is_tv = True
+                    media_type = 'tv'
                     se_match = re.search(r'/tv/\d+/(\d+)/(\d+)', url_or_id)
                     if se_match:
                         season = int(se_match.group(1))
@@ -252,11 +238,10 @@ class VidzeeResolver:
             tmdb_id = url_or_id
 
         self.log(f"TMDB ID: {tmdb_id}")
-        self.log(f"Content Type: {'TV Show' if is_tv else 'Movie'}")
-        if is_tv:
+        self.log(f"Content Type: {'TV Show' if media_type == 'tv' else 'Movie'}")
+        if media_type == 'tv':
             self.log(f"Season: {season}, Episode: {episode}")
 
-        # Get API key
         api_key = self._get_api_key()
         if not api_key:
             return json.dumps({
@@ -264,9 +249,8 @@ class VidzeeResolver:
                 'message': 'Failed to obtain API key'
             })
 
-        # Build base parameters
         base_params = f"id={tmdb_id}"
-        if is_tv and season is not None and episode is not None:
+        if media_type == 'tv' and season is not None and episode is not None:
             base_params += f"&ss={season}&ep={episode}"
 
         self.log(f"Base parameters: {base_params}")
@@ -282,7 +266,6 @@ class VidzeeResolver:
                 'message': 'No playable sources found from any server'
             })
 
-        # Build playable_urls
         playable_urls = []
         for s in all_streams:
             playable_urls.append({
@@ -311,7 +294,7 @@ def main():
 
     parser = argparse.ArgumentParser(description='Vidzee Resolver')
     parser.add_argument('url_or_id', help='Vidzee URL or TMDB ID')
-    parser.add_argument('--tv', action='store_true', help='Treat as TV show')
+    parser.add_argument('--type', choices=['movie', 'tv'], default='movie', help='Media type (default: movie)')
     parser.add_argument('--season', type=int, help='Season number (for TV)')
     parser.add_argument('--episode', type=int, help='Episode number (for TV)')
     parser.add_argument('--debug', action='store_true', help='Enable debug logging')
@@ -320,7 +303,12 @@ def main():
     args = parser.parse_args()
 
     resolver = VidzeeResolver(debug=args.debug)
-    result_json = resolver.resolve(args.url_or_id, args.tv, args.season, args.episode)
+    result_json = resolver.resolve(
+        args.url_or_id,
+        media_type=args.type,
+        season=args.season,
+        episode=args.episode
+    )
 
     if args.pretty:
         try:

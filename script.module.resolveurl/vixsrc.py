@@ -12,7 +12,7 @@ import urllib.error
 import ssl
 from urllib.parse import urljoin, urlencode
 
-__version__ = "1.0.2"
+__version__ = "1.0.3"
 
 BASE_URL = 'https://vixsrc.to'
 
@@ -58,22 +58,11 @@ class VixSrcResolver:
             return False, None, f"Error: {str(e)}"
 
     def _is_token_expired(self, expires):
-        """Check if token has expired (with 60s grace period)"""
         return int(expires) * 1000 - 60000 < time.time() * 1000
 
-    def resolve(self, url_or_id, is_tv=False, season=None, episode=None):
-        """
-        Main method to resolve VixSrc URL
-        Args:
-            url_or_id: URL or TMDB ID
-            is_tv: Whether it's a TV show
-            season: Season number (for TV)
-            episode: Episode number (for TV)
-        Returns:
-            JSON string with results
-        """
+    def resolve(self, url_or_id, media_type='movie', season=None, episode=None):
         self.log("=" * 80)
-        self.log("VixSrc Resolver Started - Standalone Mode")
+        self.log(f"VixSrc Resolver Started - {media_type}")
 
         # Extract TMDB ID from URL if needed
         if url_or_id.startswith('http'):
@@ -84,11 +73,11 @@ class VixSrcResolver:
                 match = re.search(r'/tv/(\d+)', url_or_id)
                 if match:
                     tmdb_id = match.group(1)
+                    media_type = 'tv'
                     se_match = re.search(r'/tv/\d+/(\d+)/(\d+)', url_or_id)
                     if se_match:
                         season = int(se_match.group(1))
                         episode = int(se_match.group(2))
-                        is_tv = True
                 else:
                     return json.dumps({
                         'status': 'error',
@@ -98,12 +87,12 @@ class VixSrcResolver:
             tmdb_id = url_or_id
 
         self.log(f"TMDB ID: {tmdb_id}")
-        self.log(f"Content Type: {'TV Show' if is_tv else 'Movie'}")
-        if is_tv:
+        self.log(f"Content Type: {'TV Show' if media_type == 'tv' else 'Movie'}")
+        if media_type == 'tv':
             self.log(f"Season: {season}, Episode: {episode}")
 
         # Step 1: Call the VixSrc API
-        if is_tv:
+        if media_type == 'tv':
             api_url = f"{BASE_URL}/api/tv/{tmdb_id}/{season}/{episode}"
         else:
             api_url = f"{BASE_URL}/api/movie/{tmdb_id}"
@@ -164,7 +153,6 @@ class VixSrcResolver:
         self.log(f"Expires: {expires}")
         self.log(f"Playlist: {playlist}")
 
-        # Check expiry
         if self._is_token_expired(expires):
             return json.dumps({
                 'status': 'error',
@@ -187,7 +175,6 @@ class VixSrcResolver:
             })
 
         # Step 6: Parse playlist for best quality
-        # Find highest resolution variant
         variant_regex = re.compile(r'#EXT-X-STREAM-INF:[^\n]*RESOLUTION=\d+x(\d+)[^\n]*\n([^\n]+)')
         variants = variant_regex.findall(playlist_content)
 
@@ -199,7 +186,6 @@ class VixSrcResolver:
                 best_res = res_int
                 best_url = url
 
-        # If no variants found, maybe the playlist itself is the stream
         if not best_url:
             if '#EXT-X-STREAM-INF' not in playlist_content:
                 best_url = master_url
@@ -211,7 +197,6 @@ class VixSrcResolver:
                 'message': 'No playable stream found in playlist'
             })
 
-        # Build the final stream URL (if relative, resolve against master_url)
         if not best_url.startswith('http'):
             best_url = urljoin(master_url, best_url)
 
@@ -229,7 +214,6 @@ class VixSrcResolver:
                         'label': label.group(1)
                     })
 
-        # Build response with clean URL and headers separate
         headers = {
             'User-Agent': HEADERS['User-Agent'],
             'Referer': api_url,
@@ -240,7 +224,7 @@ class VixSrcResolver:
             'tmdb_id': tmdb_id,
             'playable_urls': [
                 {
-                    'url': best_url,  # raw URL only
+                    'url': best_url,
                     'quality': quality,
                     'headers': headers,
                     'audio_tracks': audio_tracks,
@@ -259,7 +243,7 @@ def main():
 
     parser = argparse.ArgumentParser(description='VixSrc Resolver')
     parser.add_argument('url_or_id', help='VixSrc URL or TMDB ID')
-    parser.add_argument('--tv', action='store_true', help='Treat as TV show')
+    parser.add_argument('--type', choices=['movie', 'tv'], default='movie', help='Media type (default: movie)')
     parser.add_argument('--season', type=int, help='Season number (for TV)')
     parser.add_argument('--episode', type=int, help='Episode number (for TV)')
     parser.add_argument('--debug', action='store_true', help='Enable debug logging')
@@ -268,7 +252,12 @@ def main():
     args = parser.parse_args()
 
     resolver = VixSrcResolver(debug=args.debug)
-    result_json = resolver.resolve(args.url_or_id, args.tv, args.season, args.episode)
+    result_json = resolver.resolve(
+        args.url_or_id,
+        media_type=args.type,
+        season=args.season,
+        episode=args.episode
+    )
 
     if args.pretty:
         try:

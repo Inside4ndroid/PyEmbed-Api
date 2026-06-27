@@ -15,14 +15,13 @@ import urllib.error
 import ssl
 from urllib.parse import urljoin, urlencode
 
-# Use pycryptodome for AES
 try:
     from Crypto.Cipher import AES
     from Crypto.Util.Padding import pad
 except ImportError:
     raise ImportError("Please install pycryptodome: pip install pycryptodome")
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 DOMAIN = "https://vidrock.net"
 PASSPHRASE = "x7k9mPqT2rWvY8zA5bC3nF6hJ2lK4mN9"
@@ -46,20 +45,14 @@ class VidrockResolver:
         if self.debug or level == "ERROR":
             print(f"[{level}] {message}")
 
-    # ── Encryption ───────────────────────────────────────────────────────────
     def _encrypt_and_encode(self, data: str) -> str:
-        """AES-256-CBC encrypt with fixed key and IV (first 16 bytes of key)."""
         key = PASSPHRASE.encode('utf-8')
-        iv = key[:16]  # first 16 bytes
-
+        iv = key[:16]
         cipher = AES.new(key, AES.MODE_CBC, iv)
         padded_data = pad(data.encode('utf-8'), AES.block_size)
         encrypted = cipher.encrypt(padded_data)
-
-        # Base64 URL-safe, no padding, no line wraps
         return base64.urlsafe_b64encode(encrypted).decode('utf-8').rstrip('=')
 
-    # ── HTTP helpers ──────────────────────────────────────────────────────
     def _fetch_url(self, url, headers=None, timeout=15, method='GET', data=None, json_data=None):
         if headers is None:
             headers = HEADERS.copy()
@@ -86,7 +79,6 @@ class VidrockResolver:
             return False, None, f"Error: {str(e)}", None
 
     def _head_url(self, url):
-        """Perform HEAD request to check reachability."""
         headers = {
             'Referer': DOMAIN,
             'Origin': DOMAIN,
@@ -102,9 +94,7 @@ class VidrockResolver:
         except Exception:
             return False
 
-    # ── Resolve JSON playlist ──────────────────────────────────────────────
     def _resolve_json_playlist(self, url):
-        """If the URL returns a JSON array of {resolution, url}, return the highest quality URL."""
         try:
             headers = {
                 'Referer': DOMAIN,
@@ -116,13 +106,11 @@ class VidrockResolver:
             response = urllib.request.urlopen(req, timeout=15, context=self.ssl_context)
             content = response.read().decode('utf-8', errors='ignore')
             content_type = response.headers.get('Content-Type', '')
-            # Only parse if it looks like JSON array
             if not content.strip().startswith('[') or 'json' not in content_type.lower():
                 return None
             data = json.loads(content)
             if not isinstance(data, list):
                 return None
-            # Find entry with highest resolution
             best = None
             best_res = -1
             for entry in data:
@@ -146,10 +134,9 @@ class VidrockResolver:
             self.log(f"JSON playlist resolution failed: {e}", "DEBUG")
             return None
 
-    # ── Main resolve ──────────────────────────────────────────────────────
-    def resolve(self, url_or_id, is_tv=False, season=None, episode=None):
+    def resolve(self, url_or_id, media_type='movie', season=None, episode=None):
         self.log("=" * 80)
-        self.log("Vidrock Resolver Started - Standalone Mode")
+        self.log(f"Vidrock Resolver Started - {media_type}")
 
         # Extract TMDB ID from URL if needed
         if url_or_id.startswith('http'):
@@ -157,7 +144,7 @@ class VidrockResolver:
             if match:
                 tmdb_id = match.group(1)
                 if '/tv/' in url_or_id:
-                    is_tv = True
+                    media_type = 'tv'
                     se_match = re.search(r'/tv/\d+/(\d+)/(\d+)', url_or_id)
                     if se_match:
                         season = int(se_match.group(1))
@@ -171,22 +158,19 @@ class VidrockResolver:
             tmdb_id = url_or_id
 
         self.log(f"TMDB ID: {tmdb_id}")
-        self.log(f"Content Type: {'TV Show' if is_tv else 'Movie'}")
-        if is_tv:
+        self.log(f"Content Type: {'TV Show' if media_type == 'tv' else 'Movie'}")
+        if media_type == 'tv':
             self.log(f"Season: {season}, Episode: {episode}")
 
         # Build item ID
-        if is_tv and season is not None and episode is not None:
+        if media_type == 'tv' and season is not None and episode is not None:
             item_id = f"{tmdb_id}_{season}_{episode}"
         else:
             item_id = tmdb_id
 
-        # Encrypt and encode
         encrypted = self._encrypt_and_encode(item_id)
         self.log(f"Encrypted item ID: {encrypted}")
 
-        # Build API URL
-        media_type = "tv" if is_tv else "movie"
         api_url = f"{DOMAIN}/api/{media_type}/{encrypted}"
         self.log(f"Fetching API: {api_url}")
 
@@ -228,19 +212,13 @@ class VidrockResolver:
                 self.log(f"SKIP {server_name}: blocked domain", "DEBUG")
                 continue
 
-            # HEAD check
             if not self._head_url(url):
                 self.log(f"SKIP {server_name}: HEAD check failed", "DEBUG")
                 continue
 
-            # Resolve JSON playlist if needed
             resolved = self._resolve_json_playlist(url)
-            if resolved:
-                final_url = resolved
-            else:
-                final_url = url
+            final_url = resolved if resolved else url
 
-            # Determine quality
             combined = f"{final_url} {server_name}".lower()
             if "4k" in combined or "2160" in combined:
                 quality = "4K"
@@ -255,13 +233,7 @@ class VidrockResolver:
             else:
                 quality = "HD"
 
-            # Determine type
-            if ".m3u8" in final_url.lower():
-                stream_type = "hls"
-            elif ".mp4" in final_url.lower():
-                stream_type = "mp4"
-            else:
-                stream_type = "hls"
+            stream_type = "hls" if ".m3u8" in final_url.lower() else "mp4" if ".mp4" in final_url.lower() else "hls"
 
             headers = {
                 "Referer": DOMAIN,
@@ -301,7 +273,7 @@ def main():
 
     parser = argparse.ArgumentParser(description='Vidrock Resolver')
     parser.add_argument('url_or_id', help='Vidrock URL or TMDB ID')
-    parser.add_argument('--tv', action='store_true', help='Treat as TV show')
+    parser.add_argument('--type', choices=['movie', 'tv'], default='movie', help='Media type (default: movie)')
     parser.add_argument('--season', type=int, help='Season number (for TV)')
     parser.add_argument('--episode', type=int, help='Episode number (for TV)')
     parser.add_argument('--debug', action='store_true', help='Enable debug logging')
@@ -310,7 +282,12 @@ def main():
     args = parser.parse_args()
 
     resolver = VidrockResolver(debug=args.debug)
-    result_json = resolver.resolve(args.url_or_id, args.tv, args.season, args.episode)
+    result_json = resolver.resolve(
+        args.url_or_id,
+        media_type=args.type,
+        season=args.season,
+        episode=args.episode
+    )
 
     if args.pretty:
         try:

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 VidApi Resolver - Standalone Version
+Supports both movies and TV shows.
 Returns JSON with stream URL and headers
 Based on vidapi.ts
 """
@@ -14,7 +15,7 @@ import urllib.error
 import ssl
 from urllib.parse import urlencode, urljoin
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 BASE_URL = 'https://vaplayer.ru'
 API_URL = 'https://streamdata.vaplayer.ru/api.php'
@@ -73,28 +74,28 @@ class VidApiResolver:
         except Exception as e:
             return False, None, f"Error: {str(e)}"
 
-    def resolve(self, url_or_id, is_tv=False, season=None, episode=None):
+    def resolve(self, url_or_id, media_type='movie', season=None, episode=None):
         """
         Main method to resolve VidApi URL
         Args:
             url_or_id: URL or TMDB ID
-            is_tv: Whether it's a TV show
+            media_type: 'movie' or 'tv'
             season: Season number (for TV)
             episode: Episode number (for TV)
         Returns:
             JSON string with results
         """
         self.log("=" * 80)
-        self.log("VidApi Resolver Started - Standalone Mode")
+        self.log(f"VidApi Resolver Started - Standalone Mode ({media_type})")
 
         # Extract TMDB ID from URL if needed
         if url_or_id.startswith('http'):
             match = re.search(r'/(?:movie|tv)/(\d+)', url_or_id)
             if match:
                 tmdb_id = match.group(1)
-                # Check if it's a TV URL
+                # Override media_type if URL indicates TV
                 if '/tv/' in url_or_id:
-                    is_tv = True
+                    media_type = 'tv'
                     se_match = re.search(r'/tv/\d+/(\d+)/(\d+)', url_or_id)
                     if se_match:
                         season = int(se_match.group(1))
@@ -108,16 +109,16 @@ class VidApiResolver:
             tmdb_id = url_or_id
 
         self.log(f"TMDB ID: {tmdb_id}")
-        self.log(f"Content Type: {'TV Show' if is_tv else 'Movie'}")
-        if is_tv:
+        self.log(f"Content Type: {'TV Show' if media_type == 'tv' else 'Movie'}")
+        if media_type == 'tv':
             self.log(f"Season: {season}, Episode: {episode}")
 
         # Build API URL
         params = {
             'tmdb': tmdb_id,
-            'type': 'tv' if is_tv else 'movie',
+            'type': media_type,
         }
-        if is_tv and season is not None and episode is not None:
+        if media_type == 'tv' and season is not None and episode is not None:
             params['season'] = str(season)
             params['episode'] = str(episode)
 
@@ -173,13 +174,13 @@ class VidApiResolver:
         for url in stream_urls:
             # Determine type
             if '.m3u8' in url.lower():
-                media_type = 'hls'
+                stream_type = 'hls'
             elif '.mpd' in url.lower():
-                media_type = 'dash'
+                stream_type = 'dash'
             elif '.mp4' in url.lower() or '.mkv' in url.lower():
-                media_type = 'mp4'
+                stream_type = 'mp4'
             else:
-                media_type = 'hls'  # default
+                stream_type = 'hls'  # default
 
             headers_out = {
                 'User-Agent': user_agent,
@@ -189,7 +190,7 @@ class VidApiResolver:
             playable_urls.append({
                 'url': url,
                 'quality': quality,
-                'type': media_type,
+                'type': stream_type,
                 'headers': headers_out,
             })
 
@@ -240,7 +241,7 @@ def main():
 
     parser = argparse.ArgumentParser(description='VidApi Resolver')
     parser.add_argument('url_or_id', help='VidApi URL or TMDB ID')
-    parser.add_argument('--tv', action='store_true', help='Treat as TV show')
+    parser.add_argument('--type', choices=['movie', 'tv'], default='movie', help='Media type (default: movie)')
     parser.add_argument('--season', type=int, help='Season number (for TV)')
     parser.add_argument('--episode', type=int, help='Episode number (for TV)')
     parser.add_argument('--debug', action='store_true', help='Enable debug logging')
@@ -249,7 +250,12 @@ def main():
     args = parser.parse_args()
 
     resolver = VidApiResolver(debug=args.debug)
-    result_json = resolver.resolve(args.url_or_id, args.tv, args.season, args.episode)
+    result_json = resolver.resolve(
+        args.url_or_id,
+        media_type=args.type,
+        season=args.season,
+        episode=args.episode
+    )
 
     if args.pretty:
         try:
