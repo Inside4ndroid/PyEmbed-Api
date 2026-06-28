@@ -6,10 +6,11 @@ A collection of standalone Python resolvers that scrape streaming URLs from vari
 
 ## Features
 
-- **15 resolvers** targeting different streaming sources
-- **Movies & TV shows** — most resolvers support both, with season/episode lookup
+- **TMDB + Anime resolvers** — video stream extraction from 16 sources
+- **Live TV playlists** — M3U parsing from 9 providers (Xumo, Tubi, PlutoTV, etc.)
+- **Torrent providers** — magnet/direct streams from TorrentDL, Torrentio, Comet, EasyNews
 - **Consistent output** — every resolver returns a unified JSON structure
-- **Aggregate mode** — run all resolvers at once with `get_all.py`
+- **Aggregate modes** — run groups at once (`get_all_tmdb.py`, `get_all_livetv.py`, `get_all_torrents.py`)
 - **No Kodi dependency** — fully standalone Python 3 scripts
 
 ---
@@ -56,27 +57,54 @@ python providers/anime/anizone.py 550
 python providers/tmdb/fsharetv.py 550 --pretty
 ```
 
-### Aggregate resolver
+### Aggregate TMDB resolvers
 
-Run **all** resolvers and live TV playlists at once:
+Run all TMDB + anime resolvers at once:
 
 ```bash
-python get_all.py 550
-python get_all.py 1396 --type tv --season 1 --episode 1 --pretty
+python get_all_tmdb.py 550
+python get_all_tmdb.py 1399 --type tv --season 1 --episode 1 --pretty
 ```
 
-### Live TV playlists
+### Aggregate live TV
 
-Each script fetches an M3U playlist and outputs JSON with channel info:
+Fetch all live TV playlists in one command:
 
 ```bash
+python get_all_livetv.py
+```
+
+### Aggregate torrent providers
+
+Run all torrent/Usenet providers:
+
+```bash
+python get_all_torrents.py 550
+python get_all_torrents.py 1399 --type tv --season 1 --episode 1
+python get_all_torrents.py 550 --realdebrid YOUR_KEY --username YOUR_EN_USER --password YOUR_EN_PASS
+```
+
+### Individual scripts
+
+```bash
+# TMDB resolver
+python providers/tmdb/castle.py 550
+
+# Anime resolver
+python providers/anime/hianime.py 276880 --type tv --season 1 --episode 1
+
+# Live TV playlist
 python providers/livetv/xumo.py
-python providers/livetv/iptv_org.py
+
+# Torrent provider
+python providers/torrent/torrentio.py 550
+python providers/torrent/comet.py 550 --realdebrid YOUR_KEY
+python providers/torrent/easynews.py 550 --username USER --password PASS
 ```
 
 > **Note:** The **ShowBox** resolver requires a `--ui-cookie`:
 > ```bash
-> python get_all.py 550 --ui-cookie "your_token"
+> python get_all_tmdb.py 550 --ui-cookie "your_token"
 > ```
 >
 > To get the cookie:
@@ -91,7 +119,7 @@ python providers/livetv/iptv_org.py
 
 ### Live TV (`livetv/`)
 
-| Module | Source | Channels |
+| Module | Source | Type |
 |---|---|---|
 | `xumo` | Xumo Playlist | M3U → JSON |
 | `tubi` | Tubi Playlist | M3U → JSON |
@@ -101,6 +129,16 @@ python providers/livetv/iptv_org.py
 | `roku` | Roku Channel | M3U → JSON |
 | `lgtv` | LG TV Channels | M3U → JSON |
 | `iptv_org` | IPTV-org Global | M3U → JSON |
+| `plutotv` | PlutoTV API | API → JSON |
+
+### Torrent (`torrent/`)
+
+| Module | Source | Requires |
+|---|---|---|
+| `torrentdl` | TorrentDL RSS | — |
+| `torrentio` | Torrentio Stremio | — |
+| `comet` | Comet (elfhosted) | Debrid API key(s) |
+| `easynews` | EasyNews Usenet | Username + password |
 
 ### Anime (`anime/`)
 
@@ -165,7 +203,7 @@ python providers/livetv/iptv_org.py
 }
 ```
 
-### Aggregate output (`get_all.py`)
+### Aggregate output (`get_all_tmdb.py`)
 
 ```json
 {
