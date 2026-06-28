@@ -367,6 +367,7 @@ class VidNestResolver:
 
                 response['playable_urls'].append({
                     'backend': result['backend'],
+                    'server': result['backend'],
                     'url': result['url'],
                     'headers': headers
                 })

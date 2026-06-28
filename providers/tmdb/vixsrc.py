@@ -228,6 +228,7 @@ class VixSrcResolver:
                     'quality': quality,
                     'headers': headers,
                     'audio_tracks': audio_tracks,
+                    'server': 'VixSrc',
                 }
             ]
         }

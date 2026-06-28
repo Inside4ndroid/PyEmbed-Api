@@ -292,6 +292,7 @@ class FshareTvResolver:
                     'quality': quality,
                     'type': media_type_str,
                     'headers': headers,
+                    'server': 'FshareTV',
                 })
 
             response = {

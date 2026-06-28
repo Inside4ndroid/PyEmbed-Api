@@ -224,6 +224,7 @@ class HdHubResolver:
                 'quality': quality,
                 'type': stream_type,
                 'headers': headers,
+                'server': 'HdHub',
             })
 
         response = {

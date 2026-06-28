@@ -192,6 +192,7 @@ class VidApiResolver:
                 'quality': quality,
                 'type': stream_type,
                 'headers': headers_out,
+                'server': 'VidApi',
             })
 
         # Subtitles
