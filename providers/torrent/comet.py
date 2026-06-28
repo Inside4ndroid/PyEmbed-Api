@@ -86,7 +86,7 @@ def get_data(tmdb_id=None, media_type='movie', season=None, episode=None,
         },
     }
 
-    config_b64 = base64.urlsafe_b64encode(json.dumps(config).encode()).decode().rstrip('=')
+    config_b64 = base64.urlsafe_b64encode(json.dumps(config).encode()).decode()
 
     imdb_id = get_imdb_id(tmdb_id, media_type)
     if not imdb_id:
