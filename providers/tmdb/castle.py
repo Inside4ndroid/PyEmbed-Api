@@ -445,7 +445,7 @@ class CastleResolver:
                     'url': url,
                     'quality': s['quality'],
                     'type': stream_type,
-                    'headers': headers,
+                    'headers': None,
                     'server': 'Castle',
                     # Subtitles omitted
                 })
