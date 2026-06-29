@@ -1,0 +1,39 @@
+{
+  "tmdb": [
+    "castle",
+    "fsharetv",
+    "hdhub",
+    "movieblast",
+    "moviesdrive",
+    "netmirror",
+    "showbox",
+    "streamflix",
+    "vidapi",
+    "vidlink",
+    "vidnest",
+    "vidrock",
+    "vidzee",
+    "vixsrc"
+  ],
+  "anime": [
+    "anizone",
+    "hianime"
+  ],
+  "livetv": [
+    "iptv_org",
+    "lgtv",
+    "plutotv",
+    "roku",
+    "samsung",
+    "tubi",
+    "us_local",
+    "xumo",
+    "yupptv"
+  ],
+  "torrent": [
+    "comet",
+    "easynews",
+    "supreme",
+    "torrentio"
+  ]
+}
