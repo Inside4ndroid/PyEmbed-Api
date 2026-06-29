@@ -218,10 +218,7 @@ class VidApiResolver:
                 'url': sub_url,
                 'label': sub.get('lang', 'Unknown'),
                 'format': fmt,
-                'headers': {
-                    'User-Agent': user_agent,
-                    'Referer': IFRAME_URL + '/',
-                }
+                'headers': None,
             })
 
         response = {
