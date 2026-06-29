@@ -191,7 +191,7 @@ class VidApiResolver:
                 'url': url,
                 'quality': quality,
                 'type': stream_type,
-                'headers': headers_out,
+                'headers': None,
                 'server': 'VidApi',
             })
 
