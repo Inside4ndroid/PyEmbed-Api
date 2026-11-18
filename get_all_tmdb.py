@@ -32,6 +32,14 @@ RESOLVERS = [
     ('tmdb.vidrock', 'VidrockResolver', 'vidrock'),
     ('tmdb.vidzee', 'VidzeeResolver', 'vidzee'),
     ('tmdb.vixsrc', 'VixSrcResolver', 'vixsrc'),
+    ('tmdb.s111477', 'S111477Resolver', '111477'),
+    ('tmdb.vidbolt', 'VidboltResolver', 'vidbolt'),
+    ('tmdb.yastream', 'YastreamResolver', 'yastream'),
+    ('tmdb.watchout', 'WatchoutResolver', 'watchout'),
+    ('tmdb.vidspark', 'VidsparkResolver', 'vidspark'),
+    ('tmdb.braflix', 'BraflixResolver', 'braflix'),
+    ('tmdb.moviebox', 'MovieboxResolver', 'moviebox'),
+    ('tmdb.vidlux', 'VidluxResolver', 'vidlux'),
 ]
 
 def main():

@@ -170,6 +170,18 @@ python providers/torrent/supreme.py 550 --alldebrid AD_KEY --premiumize PM_KEY -
 | `vidrock` | `VidrockResolver` | Vidrock (vidrock.net) | ✓ | ✓ |
 | `vidzee` | `VidzeeResolver` | Vidzee (player.vidzee.wtf) | ✓ | ✓ |
 | `vixsrc` | `VixSrcResolver` | VixSrc (vixsrc.to) | ✓ | ✓ |
+| `111477` | `S111477Resolver` | 111477 (st.111477.xyz) | ✓ | ✓ |
+| `vidbolt` | `VidboltResolver` | VidBolt (vidbolt.xyz) | ✓ | ✓ |
+| `yastream` | `YastreamResolver` | YaStream (Stremio addon) | ✓ | ✓ |
+| `watchout` | `WatchoutResolver` | WatchOut (GitHub feed) | ✓ | ✓ |
+| `vidspark` | `VidsparkResolver` | VidSpark (vidspark.to) | ✓ | ✓ |
+| `braflix` | `BraflixResolver` | BraFlix (braflix.dev, DASH) | ✓ | ✓ |
+| `moviebox` | `MovieboxResolver` | MovieBox (net79.cc) | ✓ | ✓ |
+| `vidlux` | `VidluxResolver` | VidLux (vidlux.xyz) | ✓ | ✓ |
+
+The last eight are ported from [VyseTV](https://gitlab.com/ayman707-ux/vysetv)'s
+`film_sources/scrapers.dart` (GPL-3.0). They share `providers/common.py` for
+HTTP, TMDB metadata, HLS variant parsing and quality normalisation.
 
 ---
 
