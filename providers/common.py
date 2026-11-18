@@ -16,6 +16,7 @@ import hashlib
 import json
 import os
 import re
+import threading
 import urllib.parse
 
 import requests
@@ -40,8 +41,8 @@ TMDB_API_KEY = (
 
 DEFAULT_TIMEOUT = 15
 
-_session = None
 _meta_cache = {}
+_local = threading.local()
 
 
 class HttpError(Exception):
@@ -52,29 +53,30 @@ class HttpError(Exception):
 
 
 def session():
-    """One shared requests session (connection pooling); cookies are not relied on."""
-    global _session
-    if _session is None:
-        s = requests.Session()
-        s.headers.update(
-            {
-                "User-Agent": UA,
-                "Accept-Language": "en-US,en;q=0.9",
-            }
+    """A requests session per thread: providers run in parallel and Session is not thread-safe."""
+    s = getattr(_local, "session", None)
+    if s is not None:
+        return s
+    s = requests.Session()
+    s.headers.update(
+        {
+            "User-Agent": UA,
+            "Accept-Language": "en-US,en;q=0.9",
+        }
+    )
+    # The existing PyEmbed resolvers deliberately do not verify certificates:
+    # several of these hosts serve incomplete chains on old Android devices.
+    s.verify = False
+    if Retry is not None:
+        adapter = requests.adapters.HTTPAdapter(
+            max_retries=Retry(total=1, connect=1, read=0, backoff_factor=0.2,
+                              status_forcelist=(500, 502, 503, 504))
         )
-        # The existing PyEmbed resolvers deliberately do not verify certificates:
-        # several of these hosts serve incomplete chains on old Android devices.
-        s.verify = False
-        if Retry is not None:
-            adapter = requests.adapters.HTTPAdapter(
-                max_retries=Retry(total=1, connect=1, read=0, backoff_factor=0.2,
-                                  status_forcelist=(500, 502, 503, 504))
-            )
-            s.mount("https://", adapter)
-            s.mount("http://", adapter)
-        requests.packages.urllib3.disable_warnings()  # type: ignore[attr-defined]
-        _session = s
-    return _session
+        s.mount("https://", adapter)
+        s.mount("http://", adapter)
+    requests.packages.urllib3.disable_warnings()  # type: ignore[attr-defined]
+    _local.session = s
+    return s
 
 
 def fetch_raw(url, method="GET", headers=None, body=None, timeout=DEFAULT_TIMEOUT,

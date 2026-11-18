@@ -178,8 +178,26 @@ python providers/torrent/supreme.py 550 --alldebrid AD_KEY --premiumize PM_KEY -
 | `braflix` | `BraflixResolver` | BraFlix (braflix.dev, DASH) | ✓ | ✓ |
 | `moviebox` | `MovieboxResolver` | MovieBox (net79.cc) | ✓ | ✓ |
 | `vidlux` | `VidluxResolver` | VidLux (vidlux.xyz) | ✓ | ✓ |
+| `3eyedraven` | `ThreeEyedRavenResolver` | 3EyedRaven (3eyedraven.watch) | ✓ | ✓ |
+| `purstream` | `PurstreamResolver` | PurStream (purstream.ad) | ✓ | ✓ |
+| `fsonline` | `FsonlineResolver` | FSOnline (fsonline.app) | ✓ | ✓ |
+| `thugtv` | `ThugtvResolver` | ThugTV (thugtv.online) | ✓ | ✓ |
+| `framextv` | `FramextvResolver` | FrameXTV / StreamOS | ✓ | ✓ |
+| `lmscript` | `LmscriptResolver` | LMScript (lmscript.xyz) | ✓ | ✗ |
+| `vidqueen` | `VidqueenResolver` | VidQueen (vidqueen.st) | ✓ | ✓ |
+| `willow` | `WillowResolver` | Willow (willowmovies.com) | ✓ | ✓ |
+| `trendimovies` | `TrendimoviesResolver` | TrendiMovies (downloads) | ✓ | ✓ |
+| `cinebros` | `CinebrosResolver` | CineBros (cinebros.net) | ✓ | ✓ |
+| `lookmovie` | `LookmovieResolver` | LookMovie (lookmovie2.to) | ✓ | ✓ |
+| `netplayz` | `NetplayzResolver` | NetPlayz (api.hwnou.com) | ✓ | ✓ |
+| `meowtv` | `MeowtvResolver` | MeowTV (meowtv.ru) | ✓ | ✓ |
+| `hexa` | `HexaResolver` | Hexa (hexa.su) | ✓ | ✓ |
+| `cno` | `CnoResolver` | CNO (cno.to) | ✓ | ✓ |
+| `vidvault` | `VidvaultResolver` | VidVault (vidvault.to) | ✓ | ✓ |
+| `rivestream` | `RivestreamResolver` | RiveStream (rivestream.app) | ✓ | ✓ |
+| `vidly` | `VidlyResolver` | Vidly (vidly.pro) | ✓ | ✓ |
 
-The last eight are ported from [VyseTV](https://gitlab.com/ayman707-ux/vysetv)'s
+The last twenty-six are ported from [VyseTV](https://gitlab.com/ayman707-ux/vysetv)'s
 `film_sources/scrapers.dart` (GPL-3.0). They share `providers/common.py` for
 HTTP, TMDB metadata, HLS variant parsing and quality normalisation.
 
